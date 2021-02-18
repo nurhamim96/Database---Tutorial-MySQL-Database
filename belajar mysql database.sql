@@ -421,3 +421,223 @@ INSERT INTO customers(email, first_name, last_name)
 VALUES ('ibadaja@gmail.com', 'Ibad', 'Aja');
 
 SELECT * FROM customers;
+
+##### CHECK CONSTRAINT #####
+INSERT INTO products(id, name, category, price, quantity)
+VALUES ('P0016', 'Permen', 'Lain-Lain', 500, 1000);
+
+SELECT * FROM products;
+
+UPDATE products
+SET price = 1000
+WHERE id = 'P0016';
+
+ALTER TABLE products
+ADD CONSTRAINT price_check CHECK (price >= 1000);
+
+SHOW CREATE TABLE products;
+
+	## rejected, because the price is less than 1000 ##
+-- INSERT INTO products(id, name, category, price, quantity)
+-- VALUES ('P0017', 'Permen Lagi', 'Lain-Lain', 500, 1000); 
+
+
+##### INDEX #####
+CREATE TABLE sellers(
+id INT NOT NULL AUTO_INCREMENT,
+name VARCHAR(100) NOT NULL,
+name2 VARCHAR(100),
+name3 VARCHAR(100),
+email VARCHAR(100) NOT NULL,
+PRIMARY KEY(id),
+UNIQUE KEY email_unique(email),
+INDEX name_index(name),
+INDEX name2_index(name2),
+INDEX name3_index(name3),
+INDEX name_name_2_name3_index(name, name2, name3) ## combine 3 column
+)ENGINE = InnoDB;
+
+DESC sellers;
+
+SHOW CREATE TABLE sellers;
+
+	## Example ## 
+# SELECT * FROM selerrs WHERE name = 'X';
+
+# SELECT * FROM selerrs WHERE name = 'X' AND name2 = 'X';
+
+# SELECT * FROM selerrs WHERE name = 'X' AND name2 = 'X' AND name3 = 'X';
+
+ALTER TABLE sellers
+DROP INDEX name_index;
+
+##### FULL-TEXT SEARCH #####
+# because the product table already exists, then we just need to add it.
+ALTER TABLE products
+ADD FULLTEXT product_fulltext(name, description); 
+
+# Delete FullText Search;
+-- ALTER TABLE products
+-- DROP INDEX product_fulltext;
+
+SHOW CREATE TABLE products;
+
+SELECT * FROM products WHERE name LIKE '%ayam%' OR description LIKE '%ayam%';
+
+# Search with natural language mode
+SELECT * FROM products 
+WHERE MATCH(name, description)
+AGAINST('ayam' IN NATURAL LANGUAGE MODE);
+
+# Search with boolean mode
+SELECT * FROM products 
+WHERE MATCH(name, description)
+AGAINST('+ayam -bakso' IN BOOLEAN MODE); # -> note : +ayam = contain 'ayam', -bakso = not contain 'bakso'.
+
+# Search with query expansion mode
+SELECT * FROM products 
+WHERE MATCH(name, description)
+AGAINST('bakso' WITH QUERY EXPANSION);
+
+##### TABLE RELATIONSHIP #####
+##### FOREIGN KEY #####
+CREATE TABLE wishlist(
+	id INT NOT NULL AUTO_INCREMENT,
+	id_product VARCHAR(10) NOT NULL,
+	description TEXT,
+	PRIMARY KEY(id),
+	CONSTRAINT fk_wishlist_product
+	FOREIGN KEY(id_product) REFERENCES products(id)
+)ENGINE = InnoDB;
+
+DESC wishlist;
+
+SHOW CREATE TABLE wishlist;
+
+ALTER TABLE wishlist
+DROP CONSTRAINT fk_wishlist_product;
+
+ALTER TABLE wishlist
+ADD CONSTRAINT fk_wishlist_product
+FOREIGN KEY(id_product) REFERENCES products(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+INSERT INTO wishlist(id_product, description) 
+VALUES ('P0001', 'Makanan Kesukaan');
+
+SELECT * FROM wishlist;
+
+SELECT * FROM products;
+
+INSERT INTO products(id, name, category, price, quantity)
+VALUES
+('Pxyz', 'Contoh', 'Lain-Lain', 1000, 1000);
+
+INSERT INTO wishlist(id_product, description) 
+VALUES ('Pxyz', 'Makanan Kesukaan');
+
+DELETE FROM products WHERE id = 'Pxyz';
+
+##### JOIN #####
+SELECT * FROM wishlist JOIN products ON (wishlist.id_product = products.id);
+
+# Selection Column
+SELECT wishlist.id, products.id, products.name, wishlist.description 
+FROM wishlist JOIN products ON (wishlist.id_product = products.id);
+
+# Aliases
+SELECT w.id   		 AS id_wishlist, 
+	   p.id   		 AS id_product, 
+       p.name 		 AS product_name, 
+       w.description AS wishlist_description
+FROM wishlist AS w JOIN products AS p ON (w.id_product = p.id);
+
+# Relation to customers table
+DESC customers;
+
+ALTER TABLE wishlist
+ADD COLUMN id_customer INT;
+
+ALTER TABLE wishlist
+ADD CONSTRAINT fk_wishlist_customer
+FOREIGN KEY (id_customer) REFERENCES customers(id);
+
+SELECT * FROM customers;
+
+UPDATE wishlist
+SET id_customer = 1
+WHERE id = 1;
+
+SELECT * FROM wishlist;
+
+SELECT customers.email, products.id, products.name, wishlist.description
+FROM wishlist
+JOIN products ON (products.id = wishlist.id_product)
+JOIN customers ON (customers.id = wishlist.id_customer);
+
+##### ONE TO ONE RELATIONSHIP #####
+CREATE TABLE wallet(
+id INT NOT NULL AUTO_INCREMENT,
+id_customer INT NOT NULL,
+balance INT NOT NULL DEFAULT 0,
+PRIMARY KEY (id),
+UNIQUE KEY id_customer_unique (id_customer),
+FOREIGN KEY fk_wallet_customer (id_customer) REFERENCES customers(id)
+) ENGINE = InnoDB;
+
+DESC wallet;
+
+INSERT INTO wallet(id_customer) values (1), (3);
+
+SELECT * FROM wallet;
+
+SELECT customers.email, wallet.balance 
+FROM wallet JOIN customers ON (wallet.id_customer = customers.id);
+
+##### ONE TO MANY RELATIONSHIP #####
+CREATE TABLE categories(
+id VARCHAR(10) NOT NULL,
+name VARCHAR(100) NOT NULL,
+PRIMARY KEY (id)
+)ENGINE = InnoDB;
+
+DESC categories;
+
+SELECT * FROM categories;
+
+SELECT * FROM products;
+
+ALTER TABLE products
+DROP COLUMN category;
+
+DESC products; 
+
+ALTER TABLE products
+ADD COLUMN id_category VARCHAR(10);
+
+ALTER TABLE products
+ADD CONSTRAINT fk_products_categories
+FOREIGN KEY (id_category) REFERENCES categories(id);
+
+SHOW CREATE TABLE products;
+
+INSERT INTO categories(id, name) 
+VALUES('C0001', 'Makanan'),
+	  ('C0002', 'Minuman'),
+      ('C0003', 'Lain-Lain');
+
+UPDATE products
+SET id_category = 'C0001'
+WHERE id IN ('P0001', 'P0002', 'P0003', 'P0004', 'P0005', 'P0006', 'P0013', 'P0014', 'P0015');
+
+UPDATE products
+SET id_category = 'C0002'
+WHERE id IN ('P0007', 'P0008', 'P0009');
+
+UPDATE products
+SET id_category = 'C0003'
+WHERE id IN ('P0010', 'P0011', 'P0012', 'P0016');
+
+SELECT products.id, products.name, categories.name
+FROM products
+JOIN categories ON (categories.id = products.id_category);
