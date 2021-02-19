@@ -641,3 +641,178 @@ WHERE id IN ('P0010', 'P0011', 'P0012', 'P0016');
 SELECT products.id, products.name, categories.name
 FROM products
 JOIN categories ON (categories.id = products.id_category);
+
+##### MANY TO MANY RELATIONSHIP #####
+CREATE TABLE orders(
+id INT NOT NULL AUTO_INCREMENT,
+total INT NOT NULL,
+order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY(id)
+)ENGINE = InnoDB;
+
+DESCRIBE orders;
+
+CREATE TABLE orders_detail(
+id_product VARCHAR(10) NOT NULL,
+id_order INT NOT NULL,
+price INT NOT NULL,
+quantity INT NOT NULL,
+PRIMARY KEY(id_product, id_order)
+)ENGINE = InnoDB; 
+
+DESCRIBE orders_detail;
+
+ALTER TABLE orders_detail
+ADD CONSTRAINT fk_orders_detail_product
+FOREIGN KEY(id_product) REFERENCES products(id);
+
+ALTER TABLE orders_detail
+ADD CONSTRAINT fk_orders_detail_orders
+FOREIGN KEY(id_order) REFERENCES orders(id);
+
+SHOW CREATE TABLE orders_detail;
+
+SELECT * FROM orders;
+
+INSERT INTO orders(total) VALUES (50000);
+
+INSERT INTO orders_detail(id_product, id_order, price, quantity) 
+VALUES ('P0001', 1, 25000, 1),
+	   ('P0002', 1, 25000, 1);
+
+INSERT INTO orders_detail(id_product, id_order, price, quantity) 
+VALUES ('P0003', 2, 25000, 1),
+	   ('P0004', 2, 25000, 1);
+       
+INSERT INTO orders_detail(id_product, id_order, price, quantity) 
+VALUES ('P0002', 3, 25000, 1),
+	   ('P0004', 3, 25000, 1);
+       
+SELECT * FROM orders_detail;
+
+SELECT orders.id, products.id, products.name, orders_detail.quantity, orders_detail.price FROM orders
+JOIN orders_detail ON (orders_detail.id_order = orders.id)
+JOIN products ON (orders_detail.id_product = products.id);
+
+##### DIFFERENT TYPES OF SQL JOINs #####
+SELECT * FROM products;
+
+INSERT INTO products(id, name, price, quantity)
+VALUES ('X0001', 'X Satu', 25000, 200),
+	   ('X0002', 'X Dua', 10000, 300),
+       ('X0003', 'X Tiga', 15000, 500);
+
+SELECT * FROM categories;
+
+INSERT INTO categories(id, name)
+VALUES ('C0004', 'Oleh-Oleh'),
+	   ('C0005', 'Gadget');
+       
+# INNER JOIN
+SELECT * FROM categories
+INNER JOIN products ON (products.id_category = categories.id);       
+       
+# LEFT JOIN       
+SELECT * FROM categories
+LEFT JOIN products ON (products.id_category = categories.id);        
+       
+# RIGHT JOIN        
+SELECT * FROM categories
+RIGHT JOIN products ON (products.id_category = categories.id);       
+       
+# CROSS JOIN        
+SELECT * FROM categories       
+CROSS JOIN products;
+       
+CREATE TABLE numbers(
+id INT NOT NULL,
+PRIMARY KEY(id)
+)ENGINE = InnoDB;
+
+INSERT INTO numbers(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+SELECT numbers1.id, numbers2.id, (numbers1.id * numbers2.id) FROM numbers AS numbers1 
+CROSS JOIN numbers AS numbers2 ORDER BY numbers1.id, numbers2.id;
+
+##### SUBQUERY #####
+
+# Subquery in WHERE
+SELECT * FROM products WHERE price > (SELECT AVG(price) FROM products);
+
+# Subquery in FROM
+SELECT MAX(price) FROM products;
+
+SELECT MAX(cp.price) FROM (SELECT price FROM categories
+JOIN products ON (products.id_category = categories.id)) AS cp;
+
+UPDATE products
+SET price = 1000000
+WHERE id = 'X0003';
+
+##### SET OPERATOR #####
+CREATE TABLE guestbooks(
+id INT NOT NULL AUTO_INCREMENT,
+email VARCHAR(100),
+title VARCHAR(200),
+content TEXT,
+PRIMARY KEY(id)
+)ENGINE = InnoDB;
+
+SELECT * FROM customers;
+
+INSERT INTO guestbooks(email, title, content)
+VALUES ('guest@gmail.com', 'Hello', 'Hello'),
+	   ('guest2@gmail.com', 'Hello', 'Hello'),
+       ('guest3@gmail.com', 'Hello', 'Hello'),
+       ('ibad@gmail.com', 'Hello', 'Hello'),
+       ('ibad@gmail.com', 'Hello', 'Hello'),
+       ('ibad@gmail.com', 'Hello', 'Hello');
+       
+SELECT * FROM guestbooks;
+    
+## UNION
+SELECT DISTINCT email FROM customers
+UNION
+SELECT DISTINCT email FROM guestbooks;
+
+## UNION ALL
+SELECT DISTINCT email FROM customers
+UNION ALL
+SELECT DISTINCT email FROM guestbooks;
+
+# Without DISTINCT
+SELECT email FROM customers
+UNION
+SELECT email FROM guestbooks;
+
+SELECT email FROM customers
+UNION ALL
+SELECT email FROM guestbooks;
+
+# With Subquery
+SELECT emails.email, COUNT(emails.email) FROM (
+SELECT email FROM customers
+UNION ALL
+SELECT email FROM guestbooks
+) AS emails
+GROUP BY emails.email;
+
+##### INTERSECT #####
+## mysql doesn't have an intersect operator, we have to do it manually using JOIN or SUBQUERY
+
+# With Subquery
+SELECT DISTINCT email FROM customers
+WHERE email IN(SELECT DISTINCT email FROM guestbooks);
+
+# With Join
+SELECT DISTINCT customers.email FROM customers
+INNER JOIN guestbooks ON (guestbooks.email = customers.email);
+
+##### MINUS #####
+## an operation where the first query will be omitted by the second query
+## in mysql there is no MINUS operation, but we can use it with JOIN
+SELECT DISTINCT customers.email, guestbooks.email FROM customers
+LEFT JOIN guestbooks ON (customers.email = guestbooks.email)
+WHERE guestbooks.email IS NULL;
+
+
