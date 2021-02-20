@@ -815,4 +815,168 @@ SELECT DISTINCT customers.email, guestbooks.email FROM customers
 LEFT JOIN guestbooks ON (customers.email = guestbooks.email)
 WHERE guestbooks.email IS NULL;
 
+##### DATABASE TRANSACTION #####
+## DDL command cannot be executed on DATABASE TRANSACTION
+START TRANSACTION;
+INSERT INTO guestbooks(email, title, content) 
+VALUES ('contoh@gmail.com', 'Contoh', 'Contoh'),
+	   ('contoh2@gmail.com', 'Contoh', 'Contoh'),
+       ('contoh3@gmail.com', 'Contoh', 'Contoh');
+SELECT * FROM guestbooks;
+COMMIT;
 
+START TRANSACTION;
+DELETE FROM guestbooks
+WHERE id = 9;
+SELECT * FROM guestbooks;
+ROLLBACK;
+
+
+
+## LOCKING RECORD
+
+# USER 1
+START TRANSACTION;## LOCKING RECORD
+
+SELECT * FROM products;
+
+SELECT * FROM products WHERE id = 'P0001' FOR UPDATE;
+
+UPDATE products
+SET quantity = quantity - 10
+WHERE id = 'P0001';
+
+COMMIT;
+
+# USER 2
+# USER 2 will wait for USER 1 to COMMIT / ROLLBACK
+START TRANSACTION;
+
+SELECT * FROM products;
+
+SELECT * FROM products WHERE id = 'P0001' FOR UPDATE;
+
+UPDATE products
+SET quantity = quantity - 10
+WHERE id = 'P0001';
+
+COMMIT;
+
+# Example Deadlock #
+# USER 1
+START TRANSACTION;
+SELECT * FROM products WHERE id = 'P0001' FOR UPDATE;
+
+SELECT * FROM products WHERE id = 'P0002' FOR UPDATE;
+
+# USER 2
+START TRANSACTION;
+SELECT * FROM products WHERE id = 'P0002' FOR UPDATE;
+
+SELECT * FROM products WHERE id = 'P0001' FOR UPDATE;
+
+## LOCKING TABLE
+# READ -> USER 1 READ Only and USER 2 READ Only.
+# WRITE -> USER 1 WRITE, READ and USER 2 can't READ, WRITE.  
+
+# LOCK TABLE READ #
+# USER 1
+LOCK TABLES products READ;
+
+# can't update because READ
+UPDATE products
+SET quantity = 100
+WHERE id = 'P0001';
+
+UNLOCK TABLES;
+
+# USER 2
+# cannot be executed, until user 1 UNLOCK TABLE
+SELECT * FROM products;
+
+UPDATE products
+SET quantity = 100
+WHERE id = 'P0001';
+
+# LOCK TABLE WRITE #
+# USER 1
+LOCK TABLES products WRITE;
+
+UPDATE products
+SET quantity = 100
+WHERE id = 'P0001';
+
+SELECT * FROM products;
+
+UNLOCK TABLES;
+
+# USER 2
+# cannot be executed, until user 1 UNLOCK TABLE
+SELECT * FROM products;
+
+## LOCKING INSTANCE
+# LOCKING INSTANCE ->locking command which will create a DDL command. Usually used when backing up data, so that there is no change in the table structure
+# USER 1
+LOCK INSTANCE FOR BACKUP;
+
+UNLOCK INSTANCE;
+
+# USER 2
+# cannot be executed, until user 1 UNLOCK INSTANCE
+ALTER TABLE products
+ADD COLUMN sample VARCHAR(100);
+
+##### USER MANAGEMENT #####
+## CREATE/DELETE USER
+CREATE USER 'ibad'@'localhost';# replace 'localhost' with the desired host, you can also use the IP address
+CREATE USER 'nurhamim'@'%'; # can be accessed from anywhere
+
+DROP USER 'ibad'@'localhost';
+DROP USER 'nurhamim'@'%';
+
+## ADD/DELETE USER PRIVILEGE
+GRANT SELECT ON belajar_mysql.* TO 'ibad'@'localhost';
+GRANT SELECT ON belajar_mysql.* TO 'nurhamim'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE ON belajar_mysql.* TO 'nurhamim'@'%';
+
+SHOW GRANTS FOR 'ibad'@'localhost';
+SHOW GRANTS FOR 'nurhamim'@'%';
+
+SET PASSWORD FOR 'ibad'@'localhost' = 'secret';
+SET PASSWORD FOR 'nurhamim'@'%' = 'rahasia';
+
+##### BACKUP DATABASE #####
+# Note: remove the quotes #
+
+# Command : mysqldump "Database name" --user "Username" --password --result-file= "Direktory/File Name" 
+# Example : mysqldump belajar_mysql --user root --password --result-file=/home/ibad/Desktop/belajar_mysql.sql
+
+##### RESTORE DATABASE #####
+## IMPORT WITH MYSQL CLIENT
+CREATE SCHEMA belajar_mysql_import;
+
+SHOW DATABASES;
+# Command : mysql --user="Username" --password "the name of the database that will import the file" < "the location of the database file that will be imported"
+# Example : mysql --user=root --password belajar_mysql_import < /home/ibad/Desktop/belajar_mysql.sql
+
+USE belajar_mysql_import;
+
+SHOW TABLES;
+
+SELECT * FROM customers;
+
+## IMPORT WITH SQL SCRIPT
+CREATE SCHEMA belajar_mysql_import_source;
+
+SHOW DATABASES;
+
+USE belajar_mysql_import_source;
+
+SHOW TABLES; # before import
+
+# Command : SOURCE "location of the database file that will be imported"
+# Example : SOURCE /home/ibad/Desktop/belajar_mysql.sql;
+
+SHOW TABLES; # after import
+
+SELECT * FROM customers;
